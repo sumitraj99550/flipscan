@@ -156,7 +156,7 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
       width: 96,
       height: 96,
       decoration: BoxDecoration(
-        gradient: LinearGradient(
+        gradient: const LinearGradient(
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
           colors: [
@@ -167,7 +167,7 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
         borderRadius: BorderRadius.circular(28),
         boxShadow: [
           BoxShadow(
-            color: AppTheme.primaryColor.withOpacity(0.4),
+            color: AppTheme.primaryColor.withValues(alpha: 0.4),
             blurRadius: 32,
             spreadRadius: 4,
           ),
@@ -182,13 +182,12 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
   }
 
   Widget _buildLoadingIndicator() {
-    return SizedBox(
+    return const SizedBox(
       width: 36,
       height: 36,
       child: CircularProgressIndicator(
         strokeWidth: 2.5,
-        valueColor:
-            AlwaysStoppedAnimation<Color>(AppTheme.primaryColor),
+        valueColor: AlwaysStoppedAnimation<Color>(AppTheme.primaryColor),
       ),
     );
   }

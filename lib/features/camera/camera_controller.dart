@@ -85,12 +85,10 @@ class CameraNotifier extends StateNotifier<CameraState> {
   Timer? _flipCooldownTimer;
 
   int _stableFrameCount = 0;
-  int _lastMotionScore = 0;
   bool _isCapturing = false;
   bool _isFlipping = false;
   Uint8List? _lastFrameBytes;
   final _uuid = const Uuid();
-  String _sessionId = '';
 
   // ── Initialize Camera ─────────────────────────────────────────────────
 
@@ -121,7 +119,6 @@ class CameraNotifier extends StateNotifier<CameraState> {
 
       await _cameraController!.initialize();
 
-      _sessionId = _uuid.v4().replaceAll('-', '').substring(0, 8);
       state = state.copyWith(scanState: ScanState.detecting, clearError: true);
 
       if (SettingsRepository.instance.autoCaptureEnabled) {
@@ -399,7 +396,7 @@ class CameraNotifier extends StateNotifier<CameraState> {
 
       // Haptic feedback
       if (SettingsRepository.instance.vibrationEnabled) {
-        final hasVibrator = await Vibration.hasVibrator() ?? false;
+        final hasVibrator = await Vibration.hasVibrator();
         if (hasVibrator) Vibration.vibrate(duration: 60);
       }
 
@@ -441,14 +438,19 @@ class CameraNotifier extends StateNotifier<CameraState> {
     }
   }
 
-  void deletePage(int index) {
+  Future<void> deletePage(int index) async {
     final pages = List<ScannedPage>.from(state.capturedPages);
-    pages.removeAt(index);
+    final removedPage = pages.removeAt(index);
     // Re-number
     for (int i = 0; i < pages.length; i++) {
       pages[i] = pages[i].copyWith(pageNumber: i + 1);
     }
     state = state.copyWith(capturedPages: pages);
+    try {
+      await StorageService.instance.deleteFile(removedPage.imagePath);
+    } catch (_) {
+      // Ignore cleanup errors for temporary capture files.
+    }
   }
 
   void clearError() {

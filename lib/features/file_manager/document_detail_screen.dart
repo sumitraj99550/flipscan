@@ -8,6 +8,7 @@ import '../../models/document.dart';
 import '../../models/scanned_page.dart';
 import '../../repositories/document_repository.dart';
 import '../../repositories/page_repository.dart';
+import '../../services/storage_service.dart';
 
 class DocumentDetailScreen extends StatefulWidget {
   final String documentId;
@@ -63,8 +64,39 @@ class _DocumentDetailScreenState extends State<DocumentDetailScreen> {
     if (!confirmed) return;
     await PageRepository.instance.deleteByDocumentId(widget.documentId);
     await DocumentRepository.instance.delete(widget.documentId);
+    await _deleteDocumentFiles();
     if (!mounted) return;
-    context.pop();
+    context.pop(true);
+  }
+
+  Future<void> _deleteDocumentFiles() async {
+    final paths = <String>{};
+
+    final pdfPath = _document?.pdfPath;
+    if (pdfPath != null) {
+      paths.add(pdfPath);
+    }
+
+    final thumbnailPath = _document?.thumbnailPath;
+    if (thumbnailPath != null) {
+      paths.add(thumbnailPath);
+    }
+
+    for (final page in _pages) {
+      paths.add(page.imagePath);
+      final enhancedPath = page.enhancedPath;
+      if (enhancedPath != null) {
+        paths.add(enhancedPath);
+      }
+    }
+
+    for (final path in paths) {
+      try {
+        await StorageService.instance.deleteFile(path);
+      } catch (_) {
+        // Best-effort cleanup so deletion is not blocked by one bad file.
+      }
+    }
   }
 
   @override

@@ -24,7 +24,7 @@ class EdgeOverlayPainter extends CustomPainter {
         radius: 1.2,
         colors: [
           Colors.transparent,
-          Colors.black.withOpacity(0.3),
+          Colors.black.withValues(alpha: 0.3),
         ],
       ).createShader(Rect.fromLTWH(0, 0, size.width, size.height));
     canvas.drawRect(Rect.fromLTWH(0, 0, size.width, size.height), vigPaint);
@@ -40,7 +40,12 @@ class EdgeOverlayPainter extends CustomPainter {
 
     // Dashed or solid border
     if (isFlipping) {
-      _drawDashedRect(canvas, rect, Colors.orange.withOpacity(0.6), 2.5);
+      _drawDashedRect(
+        canvas,
+        rect,
+        Colors.orange.withValues(alpha: 0.6),
+        2.5,
+      );
     } else {
       _drawCornerBrackets(canvas, rect, color,
           isStable ? 4.0 : 2.5, isStable ? 28.0 : 22.0);
@@ -156,10 +161,10 @@ class EdgeOverlayPainter extends CustomPainter {
   void _drawStabilityArc(
       Canvas canvas, Rect rect, double progress, Color color) {
     final center = rect.center;
-    final radius = 28.0;
+    const radius = 28.0;
 
     final bgPaint = Paint()
-      ..color = color.withOpacity(0.15)
+      ..color = color.withValues(alpha: 0.15)
       ..strokeWidth = 3.5
       ..style = PaintingStyle.stroke;
 

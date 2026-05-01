@@ -7,6 +7,7 @@ import '../../app/theme.dart';
 import '../../app/constants.dart';
 import '../../models/document.dart';
 import '../../repositories/document_repository.dart';
+import '../../repositories/settings_repository.dart';
 import 'recent_docs_widget.dart';
 
 final recentDocumentsProvider =
@@ -67,9 +68,10 @@ class HomeScreen extends ConsumerWidget {
                       ? Icons.light_mode_rounded
                       : Icons.dark_mode_rounded,
                 ),
-                onPressed: () {
-                  // Toggle theme
-                  ref.read(themeModeProvider.notifier).state = !isDark;
+                onPressed: () async {
+                  final nextValue = !isDark;
+                  ref.read(themeModeProvider.notifier).state = nextValue;
+                  await SettingsRepository.instance.setDarkMode(nextValue);
                 },
               ),
               IconButton(
@@ -227,7 +229,7 @@ class _PrimaryActionCard extends StatelessWidget {
           borderRadius: BorderRadius.circular(20),
           boxShadow: [
             BoxShadow(
-              color: AppTheme.primaryColor.withOpacity(0.35),
+              color: AppTheme.primaryColor.withValues(alpha: 0.35),
               blurRadius: 20,
               offset: const Offset(0, 8),
             ),
@@ -244,7 +246,7 @@ class _PrimaryActionCard extends StatelessWidget {
                 height: 140,
                 decoration: BoxDecoration(
                   shape: BoxShape.circle,
-                  color: Colors.white.withOpacity(0.06),
+                  color: Colors.white.withValues(alpha: 0.06),
                 ),
               ),
             ),
@@ -256,7 +258,7 @@ class _PrimaryActionCard extends StatelessWidget {
                 height: 100,
                 decoration: BoxDecoration(
                   shape: BoxShape.circle,
-                  color: Colors.white.withOpacity(0.04),
+                  color: Colors.white.withValues(alpha: 0.04),
                 ),
               ),
             ),
@@ -269,7 +271,7 @@ class _PrimaryActionCard extends StatelessWidget {
                     width: 60,
                     height: 60,
                     decoration: BoxDecoration(
-                      color: Colors.white.withOpacity(0.2),
+                      color: Colors.white.withValues(alpha: 0.2),
                       borderRadius: BorderRadius.circular(16),
                     ),
                     child: const Icon(
@@ -352,10 +354,10 @@ class _SecondaryActionCard extends StatelessWidget {
             Container(
               width: 40,
               height: 40,
-              decoration: BoxDecoration(
-                color: color.withOpacity(0.12),
-                borderRadius: BorderRadius.circular(12),
-              ),
+                decoration: BoxDecoration(
+                  color: color.withValues(alpha: 0.12),
+                  borderRadius: BorderRadius.circular(12),
+                ),
               child: Icon(icon, color: color, size: 22),
             ),
             const SizedBox(height: 8),
@@ -399,7 +401,7 @@ class _EmptyRecentDocs extends StatelessWidget {
           Icon(
             Icons.document_scanner_outlined,
             size: 48,
-            color: AppTheme.primaryColor.withOpacity(0.4),
+            color: AppTheme.primaryColor.withValues(alpha: 0.4),
           ),
           const SizedBox(height: 16),
           Text(
@@ -441,11 +443,11 @@ class _PrivacyBadge extends StatelessWidget {
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
       decoration: BoxDecoration(
         color: isDark
-            ? const Color(0xFF00C853).withOpacity(0.08)
+            ? const Color(0xFF00C853).withValues(alpha: 0.08)
             : const Color(0xFFE8FFF3),
         borderRadius: BorderRadius.circular(12),
         border: Border.all(
-          color: const Color(0xFF00C853).withOpacity(0.2),
+          color: const Color(0xFF00C853).withValues(alpha: 0.2),
         ),
       ),
       child: Row(
@@ -513,7 +515,7 @@ class _HelpSheet extends StatelessWidget {
           Container(
             padding: const EdgeInsets.all(14),
             decoration: BoxDecoration(
-              color: AppTheme.primaryColor.withOpacity(0.08),
+              color: AppTheme.primaryColor.withValues(alpha: 0.08),
               borderRadius: BorderRadius.circular(12),
             ),
             child: Row(
@@ -560,10 +562,10 @@ class _HelpStep extends StatelessWidget {
           Container(
             width: 28,
             height: 28,
-            decoration: BoxDecoration(
-              color: AppTheme.primaryColor.withOpacity(0.12),
-              shape: BoxShape.circle,
-            ),
+              decoration: BoxDecoration(
+                color: AppTheme.primaryColor.withValues(alpha: 0.12),
+                shape: BoxShape.circle,
+              ),
             child: Center(
               child: Text(
                 number,

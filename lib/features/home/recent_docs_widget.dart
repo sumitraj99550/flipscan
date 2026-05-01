@@ -101,7 +101,7 @@ class _DocTile extends StatelessWidget {
                 padding: const EdgeInsets.symmetric(
                     horizontal: 8, vertical: 3),
                 decoration: BoxDecoration(
-                  color: AppTheme.primaryColor.withOpacity(0.12),
+                  color: AppTheme.primaryColor.withValues(alpha: 0.12),
                   borderRadius: BorderRadius.circular(6),
                 ),
                 child: const Text(

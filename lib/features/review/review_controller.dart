@@ -90,13 +90,14 @@ class ReviewNotifier extends StateNotifier<ReviewState> {
     state = state.copyWith(pages: renumbered);
   }
 
-  void deletePage(int index) {
+  Future<void> deletePage(int index) async {
     final pages = List<ScannedPage>.from(state.pages);
-    pages.removeAt(index);
+    final removedPage = pages.removeAt(index);
     final renumbered = pages.asMap().entries.map((e) {
       return e.value.copyWith(pageNumber: e.key + 1);
     }).toList();
     state = state.copyWith(pages: renumbered);
+    await _deletePageFiles(removedPage);
   }
 
   Future<void> rotatePage(int index) async {
@@ -117,10 +118,36 @@ class ReviewNotifier extends StateNotifier<ReviewState> {
           img.encodeJpg(rotated, quality: 85),
           rotFilename,
         );
+        String? rotatedEnhancedPath;
+        final oldEnhancedPath = page.enhancedPath;
+        if (oldEnhancedPath != null) {
+          final enhancedFile = File(oldEnhancedPath);
+          if (await enhancedFile.exists()) {
+            final enhancedBytes = await enhancedFile.readAsBytes();
+            final enhancedImage = img.decodeImage(enhancedBytes);
+            if (enhancedImage != null) {
+              final rotatedEnhanced = ImageUtils.rotate(
+                enhancedImage,
+                newDegrees,
+              );
+              rotatedEnhancedPath = await StorageService.instance.saveImage(
+                img.encodeJpg(rotatedEnhanced, quality: 85),
+                'rot_enh_${page.id}_$newDegrees.jpg',
+              );
+            }
+          }
+        }
+
         pages[index] = page.copyWith(
           imagePath: rotPath,
+          enhancedPath: rotatedEnhancedPath,
           rotationDegrees: newDegrees,
         );
+
+        await _deleteFileIfPresent(page.imagePath);
+        if (oldEnhancedPath != null) {
+          await _deleteFileIfPresent(oldEnhancedPath);
+        }
       }
     } finally {
       final ids = Set<String>.from(state.processingPageIds)..remove(page.id);
@@ -135,6 +162,7 @@ class ReviewNotifier extends StateNotifier<ReviewState> {
     state = state.copyWith(processingPageIds: processingIds);
 
     try {
+      final previousEnhancedPath = page.enhancedPath;
       final enhancedPath = await EnhancementService.instance.enhancePage(
         sourceImagePath: page.imagePath,
         pageId: page.id,
@@ -144,6 +172,11 @@ class ReviewNotifier extends StateNotifier<ReviewState> {
         enhancedPath: enhancedPath,
         enhancementMode: mode,
       );
+
+      if (previousEnhancedPath != null &&
+          previousEnhancedPath != enhancedPath) {
+        await _deleteFileIfPresent(previousEnhancedPath);
+      }
     } catch (e) {
       // Enhancement failed — keep original
     } finally {
@@ -220,6 +253,20 @@ class ReviewNotifier extends StateNotifier<ReviewState> {
         isProcessing: false,
       );
       return null;
+    }
+  }
+
+  Future<void> _deletePageFiles(ScannedPage page) async {
+    await _deleteFileIfPresent(page.imagePath);
+    await _deleteFileIfPresent(page.enhancedPath);
+  }
+
+  Future<void> _deleteFileIfPresent(String? path) async {
+    if (path == null) return;
+    try {
+      await StorageService.instance.deleteFile(path);
+    } catch (_) {
+      // Ignore cleanup failures during editing flows.
     }
   }
 }

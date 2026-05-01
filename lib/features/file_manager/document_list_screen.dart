@@ -62,7 +62,14 @@ class _DocumentListScreenState extends State<DocumentListScreen> {
                   title: Text(doc.name),
                   subtitle: Text('${doc.pageCount} page(s)'),
                   trailing: const Icon(Icons.chevron_right),
-                  onTap: () => context.push('/document/${doc.id}'),
+                  onTap: () async {
+                    final wasDeleted = await context.push<bool>(
+                      '/document/${doc.id}',
+                    );
+                    if (wasDeleted == true) {
+                      await _reload();
+                    }
+                  },
                 );
               },
             ),

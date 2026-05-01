@@ -41,7 +41,7 @@ dependencies:
   image_picker: ^1.1.2
 
   # Haptics & sound
-  vibration: ^1.9.0
+  vibration: ^3.0.0
   audioplayers: ^6.0.0
 
   # UI utilities
@@ -65,12 +65,3 @@ flutter:
     - assets/images/
     - assets/sounds/
     - assets/animations/
-
-  fonts:
-    - family: SpaceGrotesk
-      fonts:
-        - asset: assets/fonts/SpaceGrotesk-Regular.ttf
-        - asset: assets/fonts/SpaceGrotesk-Medium.ttf
-          weight: 500
-        - asset: assets/fonts/SpaceGrotesk-Bold.ttf
-          weight: 700

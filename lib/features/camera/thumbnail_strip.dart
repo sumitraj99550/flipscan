@@ -94,7 +94,7 @@ class _ThumbnailStripState extends State<ThumbnailStrip> {
                 boxShadow: isSelected
                     ? [
                         BoxShadow(
-                          color: AppTheme.accentColor.withOpacity(0.3),
+                          color: AppTheme.accentColor.withValues(alpha: 0.3),
                           blurRadius: 8,
                         )
                       ]

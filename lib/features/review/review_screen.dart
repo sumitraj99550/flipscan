@@ -131,16 +131,23 @@ class _ReviewScreenState extends ConsumerState<ReviewScreen> {
                 onPressed: state.isProcessing
                     ? null
                     : () async {
+                        final messenger = ScaffoldMessenger.of(context);
+                        final router = GoRouter.of(context);
                         final path = await notifier.saveDocument();
                         if (!mounted) return;
                         if (path != null) {
-                          ScaffoldMessenger.of(context).showSnackBar(
+                          messenger.showSnackBar(
                             SnackBar(content: Text('Saved PDF: $path')),
                           );
-                          context.go('/documents');
+                          router.go('/documents');
                         } else {
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            SnackBar(content: Text(state.errorMessage ?? 'Save failed')),
+                          final latestState = ref.read(provider);
+                          messenger.showSnackBar(
+                            SnackBar(
+                              content: Text(
+                                latestState.errorMessage ?? 'Save failed',
+                              ),
+                            ),
                           );
                         }
                       },
