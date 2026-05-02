@@ -1,6 +1,7 @@
 import 'dart:io';
 import 'dart:math' as math;
 import 'dart:typed_data';
+import 'dart:ui' show Offset; // BUG FIX #3: Use dart:ui Offset, not a local class.
 import 'package:image/image.dart' as img;
 import '../app/constants.dart';
 import '../models/scanned_page.dart';
@@ -62,12 +63,10 @@ class ImageUtils {
 
   static img.Image _applyBlackAndWhite(img.Image image) {
     final gray = img.grayscale(image);
-    // Adaptive threshold-like: normalize contrast
     return img.adjustColor(gray, contrast: 1.3, brightness: 0.1);
   }
 
   static img.Image _applyEnhanced(img.Image image) {
-    // Sharpen + contrast boost
     final sharpened = img.convolution(image, filter: [
       0, -1, 0,
       -1, 5, -1,
@@ -81,15 +80,13 @@ class ImageUtils {
   }
 
   static img.Image _applyColorPreserve(img.Image image) {
-    // Gentle enhancement preserving color
     return img.adjustColor(image,
         contrast: 1.1, saturation: 1.1, brightness: 0.05);
   }
 
-  /// Crop image to a quadrilateral (perspective correction placeholder)
-  /// For Phase 2: replace with OpenCV warpPerspective
+  /// Crop image to a quadrilateral bounding box.
+  /// [corners] are normalized 0..1 coordinates using dart:ui Offset.
   static img.Image cropToRect(img.Image image, List<Offset> corners) {
-    // Simple bounding box crop for Phase 1 (no OpenCV)
     final xs = corners.map((c) => c.dx * image.width).toList();
     final ys = corners.map((c) => c.dy * image.height).toList();
 
@@ -116,7 +113,6 @@ class ImageUtils {
   }
 }
 
-class Offset {
-  final double dx, dy;
-  const Offset(this.dx, this.dy);
-}
+// BUG FIX #3: REMOVED the local `class Offset` that was previously defined here.
+// It shadowed dart:ui's Offset, causing type-mismatch compile errors in any
+// file that imported both image_utils.dart and package:flutter/material.dart.

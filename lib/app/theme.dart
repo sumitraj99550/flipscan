@@ -55,6 +55,9 @@ class AppTheme {
   static ThemeData get lightTheme => ThemeData(
     useMaterial3: true,
     brightness: Brightness.light,
+    // BUG FIX #4: Removed deprecated `background` from colorScheme.copyWith.
+    // In Flutter 3.18+ ColorScheme.background is deprecated. Scaffold
+    // background is controlled by scaffoldBackgroundColor below.
     colorScheme: ColorScheme.fromSeed(
       seedColor: primaryColor,
       brightness: Brightness.light,
@@ -62,20 +65,19 @@ class AppTheme {
       primary: primaryColor,
       secondary: accentColor,
       surface: lightSurface,
-      background: lightBg,
       error: errorColor,
     ),
     scaffoldBackgroundColor: lightBg,
     textTheme: _buildTextTheme(false),
-    appBarTheme: AppBarTheme(
+    appBarTheme: const AppBarTheme(
       backgroundColor: lightSurface,
       elevation: 0,
       centerTitle: true,
-      titleTextStyle: const TextStyle(
+      titleTextStyle: TextStyle(
         fontSize: 18, fontWeight: FontWeight.w700,
         color: Color(0xFF0D0D0F),
       ),
-      iconTheme: const IconThemeData(color: Color(0xFF0D0D0F)),
+      iconTheme: IconThemeData(color: Color(0xFF0D0D0F)),
     ),
     cardTheme: CardThemeData(
       color: lightSurface,
@@ -113,6 +115,7 @@ class AppTheme {
   static ThemeData get darkTheme => ThemeData(
     useMaterial3: true,
     brightness: Brightness.dark,
+    // BUG FIX #4: Removed deprecated `background` from colorScheme.copyWith.
     colorScheme: ColorScheme.fromSeed(
       seedColor: primaryColor,
       brightness: Brightness.dark,
@@ -120,20 +123,19 @@ class AppTheme {
       primary: primaryColor,
       secondary: accentColor,
       surface: darkSurface,
-      background: darkBg,
       error: errorColor,
     ),
     scaffoldBackgroundColor: darkBg,
     textTheme: _buildTextTheme(true),
-    appBarTheme: AppBarTheme(
+    appBarTheme: const AppBarTheme(
       backgroundColor: darkBg,
       elevation: 0,
       centerTitle: true,
-      titleTextStyle: const TextStyle(
+      titleTextStyle: TextStyle(
         fontSize: 18, fontWeight: FontWeight.w700,
         color: Colors.white,
       ),
-      iconTheme: const IconThemeData(color: Colors.white),
+      iconTheme: IconThemeData(color: Colors.white),
     ),
     cardTheme: CardThemeData(
       color: darkCard,

@@ -14,7 +14,7 @@ class EdgeOverlayPainter extends CustomPainter {
   @override
   void paint(Canvas canvas, Size size) {
     final color = _stateColor;
-    final isFlipping = scanState == ScanState.flipping;
+    final isFlipping = scanState == ScanState.flipping || scanState == ScanState.restabilizing;
     final isStable = scanState == ScanState.stable;
 
     // Darkened border vignette
@@ -61,10 +61,14 @@ class EdgeOverlayPainter extends CustomPainter {
     switch (scanState) {
       case ScanState.stable:
         return AppTheme.successColor;
-      case ScanState.flipping:
-        return Colors.orange;
       case ScanState.capturing:
         return Colors.white;
+      case ScanState.flipping:
+        return Colors.orange;
+      case ScanState.restabilizing:
+        return Colors.amber;
+      case ScanState.monitoring:
+        return Colors.indigo;
       case ScanState.paused:
         return Colors.grey;
       default:

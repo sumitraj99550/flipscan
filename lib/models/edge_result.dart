@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
 
-// Edge detection result from OpenCV
+// Edge / frame analysis result
 class EdgeResult {
   final List<Offset>? quad; // 4 corner points normalized 0..1
-  final double confidence; // 0.0 to 1.0
+  final double confidence;  // 0.0 to 1.0
   final double blurScore;
   final bool isSharp;
   final double motionScore;
@@ -26,14 +26,25 @@ class EdgeResult {
       );
 }
 
-// Scanning session state
+// ─── Scan state machine ────────────────────────────────────────────────────
+// Live flip-scan flow:
+//   idle → detecting → stable → capturing → monitoring
+//       → (flip detected) flipping → restabilizing → detecting → ...
+//
+// Video-scan flow:
+//   idle → recording → (stop) → analyzing → idle
+// ──────────────────────────────────────────────────────────────────────────
 enum ScanState {
-  idle,
-  detecting,
-  stable,
-  capturing,
-  flipping,
-  paused,
+  idle,          // camera not started
+  detecting,     // looking for a stable document
+  stable,        // document stable, ready to capture
+  capturing,     // taking high-quality picture
+  monitoring,    // page captured; watching for the NEXT flip
+  flipping,      // sustained motion detected = page being flipped
+  restabilizing, // after flip; waiting for new page to settle
+  paused,        // user paused scan
+  recording,     // video mode: recording in progress
+  analyzing,     // video mode: extracting & deduplicating frames
   error,
 }
 

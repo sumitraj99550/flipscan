@@ -8,6 +8,7 @@ import '../features/review/review_screen.dart';
 import '../features/file_manager/document_list_screen.dart';
 import '../features/file_manager/document_detail_screen.dart';
 import '../features/settings/settings_screen.dart';
+import '../features/video/video_scan_screen.dart';
 import '../models/scanned_page.dart';
 
 final routerProvider = Provider<GoRouter>((ref) {
@@ -25,6 +26,10 @@ final routerProvider = Provider<GoRouter>((ref) {
       GoRoute(
         path: '/camera',
         builder: (context, state) => const CameraScreen(),
+      ),
+      GoRoute(
+        path: '/video-scan',
+        builder: (context, state) => const VideoScanScreen(),
       ),
       GoRoute(
         path: '/review',

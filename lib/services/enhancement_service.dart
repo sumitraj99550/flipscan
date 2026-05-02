@@ -1,5 +1,6 @@
 import 'dart:io';
 import 'dart:isolate';
+import 'dart:typed_data';
 import 'package:image/image.dart' as img;
 import '../app/constants.dart';
 import '../models/scanned_page.dart';
@@ -16,37 +17,32 @@ class EnhancementService {
     required String pageId,
     required EnhancementMode mode,
   }) async {
-    // Run in isolate to avoid blocking UI
-    final resultPath = await Isolate.run(() async {
-      return _processImage(sourceImagePath, pageId, mode);
+    // Run CPU-heavy processing in isolate, but save OUTSIDE isolate
+    // because StorageService is a main-isolate singleton.
+    final encodedBytes = await Isolate.run(() async {
+      return _processImageToBytes(sourceImagePath, mode);
     });
 
-    return resultPath;
+    // Save from main isolate where StorageService is initialized
+    final filename = 'enhanced_$pageId.jpg';
+    final savePath = await StorageService.instance.saveImage(encodedBytes, filename);
+    return savePath;
   }
 
-  static Future<String> _processImage(
+  /// Runs inside an isolate — does NOT touch any singletons.
+  static Future<List<int>> _processImageToBytes(
     String sourcePath,
-    String pageId,
     EnhancementMode mode,
   ) async {
     final file = File(sourcePath);
-    if (!await file.exists()) throw Exception('Source image not found');
+    if (!await file.exists()) throw Exception('Source image not found: $sourcePath');
 
     final bytes = await file.readAsBytes();
     img.Image? image = img.decodeImage(bytes);
-    if (image == null) throw Exception('Could not decode image');
+    if (image == null) throw Exception('Could not decode image at $sourcePath');
 
-    // Apply enhancement
     final enhanced = _enhance(image, mode);
-
-    // Save
-    final filename = 'enhanced_$pageId.jpg';
-    final savePath = await StorageService.instance.saveImage(
-      img.encodeJpg(enhanced, quality: AppConstants.jpegQuality),
-      filename,
-    );
-
-    return savePath;
+    return img.encodeJpg(enhanced, quality: AppConstants.jpegQuality);
   }
 
   static img.Image _enhance(img.Image image, EnhancementMode mode) {
@@ -81,7 +77,6 @@ class EnhancementService {
 
     for (int y = 0; y < gray.height; y++) {
       for (int x = 0; x < gray.width; x++) {
-        // Compute local mean in blockSize x blockSize window
         double sum = 0;
         int count = 0;
 
