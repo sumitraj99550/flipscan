@@ -1,54 +1,53 @@
 class AppConstants {
   // ── Capture thresholds ────────────────────────────────────────────────
-  static const double blurThreshold = 80.0;
-  static const double edgeConfidenceThreshold = 0.60; // slightly relaxed
-  static const double motionThreshold = 0.08;         // below = considered still
-  static const double duplicateHashDistance = 10.0;
-  static const double minPageAreaRatio = 0.25;
+  // Note: blurThreshold is calibrated for stream Y-plane Laplacian variance
+  static const double blurThreshold = 60.0;
+  static const double edgeConfidenceThreshold = 0.50;
+  // Motion thresholds (normalized 0–1, stream Y-plane MAD / 128)
+  static const double motionThreshold = 0.06;      // below = camera is still
+  static const double flipMotionThreshold = 0.14;  // above = flip happening
+  static const double duplicateHashDistance = 8.0;
+  static const double motionAmplifier = 4.5;       // kept for legacy use
 
   // ── Flip detection ────────────────────────────────────────────────────
-  /// Motion score above this value = "significant motion" (flip candidate)
-  static const double flipMotionThreshold = 0.18;
-  /// Consecutive high-motion frames before declaring a flip
+  /// Consecutive frames above flipMotionThreshold before declaring a flip
   static const int flipMotionFramesRequired = 2;
-  /// Amplifier applied to raw frame-diff score (tuning)
-  static const double motionAmplifier = 5.0;
 
   // ── Stability ─────────────────────────────────────────────────────────
-  /// Frames that must be stable before auto-capture fires
-  static const int stableFramesRequired = 4;
+  /// Consecutive still+sharp frames needed before auto-capture fires
+  static const int stableFramesRequired = 3;
 
-  // ── Timing ────────────────────────────────────────────────────────────
-  static const int flipCooldownMs = 700;
-  static const int frameAnalysisIntervalMs = 150; // ~6.5 fps effective
+  // ── Stream analysis ───────────────────────────────────────────────────
+  /// Minimum ms between stream frame analyses (~10 fps)
+  static const int streamThrottleMs = 100;
+  /// Flip cooldown after a flip is declared (ms)
+  static const int flipCooldownMs = 600;
 
-  // ── Image settings ────────────────────────────────────────────────────
-  static const int analysisResolutionWidth = 480;
+  // ── Image / capture settings ──────────────────────────────────────────
   static const int jpegQuality = 88;
   static const int thumbnailSize = 200;
 
   // ── Video scan ────────────────────────────────────────────────────────
-  /// Extract one frame every N milliseconds from recorded video
-  static const int videoFrameIntervalMs = 500; // 2 fps
-  /// Hash distance threshold for "same page" grouping (0-64)
-  static const int videoPageGroupThreshold = 15;
-  /// Minimum frames in a group to count as a real page (filters blur/motion)
-  static const int videoMinGroupSize = 2;
+  /// Extract one frame every N ms from recorded video (~3 fps)
+  static const int videoFrameIntervalMs = 300;
+  /// Max hash-bit difference for "same page" (0–64)
+  /// 12 = tolerates slight tilt / lighting variation within same page
+  static const int videoPageGroupThreshold = 12;
+  /// Min frames in a group to be counted as a real page
+  static const int videoMinGroupSize = 1;
 
   // ── Storage ───────────────────────────────────────────────────────────
   static const String documentsFolder = 'FlipScan';
   static const String dbName = 'flipscan.db';
   static const int dbVersion = 1;
-  static const int maxInMemoryPages = 20;
 
   // ── PDF ───────────────────────────────────────────────────────────────
-  static const double pdfPageWidth = 595.0; // A4 points
+  static const double pdfPageWidth = 595.0;
   static const double pdfPageHeight = 842.0;
 
   // ── App info ──────────────────────────────────────────────────────────
   static const String appName = 'FlipScan AI';
   static const String appVersion = '1.0.0';
   static const String privacyMessage =
-      'Your documents are processed entirely on your device and never leave it. '
-      'No internet connection required.';
+      'Your documents are processed entirely on your device and never leave it.';
 }

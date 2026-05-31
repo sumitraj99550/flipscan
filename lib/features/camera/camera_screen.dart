@@ -27,7 +27,7 @@ class _CameraScreenState extends ConsumerState<CameraScreen>
     super.initState();
     _captureAnimController = AnimationController(
       vsync: this,
-      duration: const Duration(milliseconds: 300),
+      duration: const Duration(milliseconds: 250),
     );
     WidgetsBinding.instance.addPostFrameCallback((_) => _initCamera());
   }
@@ -48,6 +48,7 @@ class _CameraScreenState extends ConsumerState<CameraScreen>
       );
       return;
     }
+    // initCamera() now auto-starts detection immediately
     await ref.read(cameraControllerProvider.notifier).initCamera();
   }
 
@@ -56,7 +57,20 @@ class _CameraScreenState extends ConsumerState<CameraScreen>
     final cameraState = ref.watch(cameraControllerProvider);
     final cameraPlugin = ref.watch(cameraPluginProvider);
 
-    // Animate flash on capture
+    // ── Navigate to review when user presses Done ──────────────────
+    ref.listen<CameraState>(cameraControllerProvider, (prev, next) {
+      if (next.shouldNavigateToReview && mounted) {
+        ref.read(cameraControllerProvider.notifier).consumeNavigation();
+        if (next.capturedPages.isEmpty) {
+          // No pages captured — just pop back
+          context.pop();
+        } else {
+          context.push('/review', extra: next.capturedPages);
+        }
+      }
+    });
+
+    // Capture flash animation
     if (_prevScanState != cameraState.scanState) {
       if (cameraState.scanState == ScanState.capturing) {
         _captureAnimController.forward(from: 0);
@@ -73,19 +87,19 @@ class _CameraScreenState extends ConsumerState<CameraScreen>
             child: (cameraPlugin != null && cameraPlugin.value.isInitialized)
                 ? CameraPreview(cameraPlugin)
                 : const Center(
-                    child: Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        CircularProgressIndicator(color: Colors.white),
-                        SizedBox(height: 16),
-                        Text('Initializing camera…',
-                            style: TextStyle(color: Colors.white54)),
-                      ],
-                    ),
-                  ),
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  CircularProgressIndicator(color: Colors.white),
+                  SizedBox(height: 16),
+                  Text('Starting camera…',
+                      style: TextStyle(color: Colors.white54)),
+                ],
+              ),
+            ),
           ),
 
-          // ── Edge / Scan Overlay ────────────────────────────────────
+          // ── Edge / Scan Overlay ─────────────────────────────────────
           Positioned.fill(
             child: IgnorePointer(
               child: CustomPaint(
@@ -97,13 +111,13 @@ class _CameraScreenState extends ConsumerState<CameraScreen>
             ),
           ),
 
-          // ── Capture Flash ──────────────────────────────────────────
+          // ── Capture Flash ───────────────────────────────────────────
           Positioned.fill(
             child: IgnorePointer(
               child: AnimatedBuilder(
                 animation: _captureAnimController,
                 builder: (_, __) => Opacity(
-                  opacity: (1 - _captureAnimController.value) * 0.6,
+                  opacity: (1 - _captureAnimController.value) * 0.55,
                   child: _captureAnimController.value > 0
                       ? Container(color: Colors.white)
                       : const SizedBox.shrink(),
@@ -112,107 +126,60 @@ class _CameraScreenState extends ConsumerState<CameraScreen>
             ),
           ),
 
-          // ── Top Bar ────────────────────────────────────────────────
+          // ── Top Bar ─────────────────────────────────────────────────
           Positioned(
             top: 48,
             left: 16,
             right: 16,
             child: Row(
               children: [
-                // Back button
                 _CircleButton(
                   icon: Icons.arrow_back,
                   onTap: () {
-                    ref.read(cameraControllerProvider.notifier).stopFlipScan();
-                    context.pop();
+                    ref.read(cameraControllerProvider.notifier).finishScan();
                   },
                 ),
                 const Spacer(),
-
-                // State badge
                 _StateBadge(scanState: cameraState.scanState),
                 const SizedBox(width: 8),
-
-                // Page count badge
                 _CountBadge(count: cameraState.capturedPages.length),
                 const SizedBox(width: 8),
-
-                // Video Mode button
+                // Video Mode
                 _CircleButton(
                   icon: Icons.videocam,
-                  label: 'Video',
-                  onTap: () {
-                    ref.read(cameraControllerProvider.notifier).stopFlipScan();
-                    context.push('/video-scan');
-                  },
+                  onTap: () => context.push('/video-scan'),
                 ),
               ],
             ),
           ),
 
-          // ── Middle Hint ────────────────────────────────────────────
-          if (cameraState.scanState == ScanState.idle &&
-              cameraPlugin != null &&
-              cameraPlugin.value.isInitialized)
-            Center(
-              child: Container(
-                margin: const EdgeInsets.symmetric(horizontal: 40),
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
-                decoration: BoxDecoration(
-                  color: Colors.black.withOpacity(0.65),
-                  borderRadius: BorderRadius.circular(16),
-                ),
-                child: const Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Icon(Icons.flip, color: Colors.white, size: 40),
-                    SizedBox(height: 12),
-                    Text(
-                      'Press "Start Flip Scan" to begin.',
-                      textAlign: TextAlign.center,
-                      style: TextStyle(
-                          color: Colors.white,
-                          fontSize: 16,
-                          fontWeight: FontWeight.w500),
-                    ),
-                    SizedBox(height: 6),
-                    Text(
-                      'The camera will auto-capture each page\nas you slowly flip through your document.',
-                      textAlign: TextAlign.center,
-                      style: TextStyle(color: Colors.white70, fontSize: 13),
-                    ),
-                  ],
-                ),
-              ),
-            ),
-
-          // ── Flip Detected Banner ───────────────────────────────────
-          if (cameraState.scanState == ScanState.flipping ||
+          // ── Status banners ──────────────────────────────────────────
+          if (cameraState.scanState == ScanState.detecting ||
               cameraState.scanState == ScanState.restabilizing)
             Positioned(
-              top: 120,
+              top: 112,
               left: 0,
               right: 0,
               child: Center(
                 child: Container(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+                  padding: const EdgeInsets.symmetric(
+                      horizontal: 18, vertical: 10),
                   decoration: BoxDecoration(
-                    color: Colors.orange.withOpacity(0.9),
+                    color: Colors.black.withValues(alpha: 0.6),
                     borderRadius: BorderRadius.circular(24),
                   ),
                   child: Row(
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      const Icon(Icons.flip, color: Colors.white, size: 18),
+                      const Icon(Icons.document_scanner,
+                          color: Colors.white70, size: 18),
                       const SizedBox(width: 8),
                       Text(
-                        cameraState.scanState == ScanState.flipping
-                            ? 'Page flip detected…'
-                            : 'Stabilizing new page…',
+                        cameraState.scanState == ScanState.detecting
+                            ? 'Point camera at a document…'
+                            : 'New page settling…',
                         style: const TextStyle(
-                            color: Colors.white, fontWeight: FontWeight.w600),
+                            color: Colors.white, fontSize: 13),
                       ),
                     ],
                   ),
@@ -220,14 +187,110 @@ class _CameraScreenState extends ConsumerState<CameraScreen>
               ),
             ),
 
-          // ── Error Banner ───────────────────────────────────────────
+          if (cameraState.scanState == ScanState.stable)
+            Positioned(
+              top: 112,
+              left: 0,
+              right: 0,
+              child: Center(
+                child: Container(
+                  padding: const EdgeInsets.symmetric(
+                      horizontal: 18, vertical: 10),
+                  decoration: BoxDecoration(
+                    color: Colors.green.shade700.withValues(alpha: 0.9),
+                    borderRadius: BorderRadius.circular(24),
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      const Icon(Icons.check_circle,
+                          color: Colors.white, size: 18),
+                      const SizedBox(width: 8),
+                      const Text('Document detected — capturing…',
+                          style: TextStyle(
+                              color: Colors.white,
+                              fontWeight: FontWeight.w600)),
+                      const SizedBox(width: 8),
+                      SizedBox(
+                        width: 60,
+                        height: 6,
+                        child: ClipRRect(
+                          borderRadius: BorderRadius.circular(3),
+                          child: LinearProgressIndicator(
+                            value: cameraState.stabilityProgress,
+                            backgroundColor: Colors.white30,
+                            color: Colors.white,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+
+          if (cameraState.scanState == ScanState.monitoring)
+            Positioned(
+              top: 112,
+              left: 0,
+              right: 0,
+              child: Center(
+                child: Container(
+                  padding: const EdgeInsets.symmetric(
+                      horizontal: 18, vertical: 10),
+                  decoration: BoxDecoration(
+                    color: Colors.indigo.shade700.withValues(alpha: 0.9),
+                    borderRadius: BorderRadius.circular(24),
+                  ),
+                  child: const Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(Icons.flip, color: Colors.white, size: 18),
+                      SizedBox(width: 8),
+                      Text('Watching for next page flip…',
+                          style: TextStyle(color: Colors.white, fontSize: 13)),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+
+          if (cameraState.scanState == ScanState.flipping)
+            Positioned(
+              top: 112,
+              left: 0,
+              right: 0,
+              child: Center(
+                child: Container(
+                  padding: const EdgeInsets.symmetric(
+                      horizontal: 18, vertical: 10),
+                  decoration: BoxDecoration(
+                    color: Colors.orange.shade700.withValues(alpha: 0.9),
+                    borderRadius: BorderRadius.circular(24),
+                  ),
+                  child: const Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(Icons.swap_horiz, color: Colors.white, size: 20),
+                      SizedBox(width: 8),
+                      Text('Page flip detected!',
+                          style: TextStyle(
+                              color: Colors.white,
+                              fontWeight: FontWeight.bold)),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+
+          // ── Error Banner ─────────────────────────────────────────────
           if (cameraState.errorMessage != null)
             Positioned(
-              top: 120,
+              top: 112,
               left: 16,
               right: 16,
               child: Material(
-                color: Colors.red.shade800.withOpacity(0.9),
+                color: Colors.red.shade800.withValues(alpha: 0.92),
                 borderRadius: BorderRadius.circular(12),
                 child: Padding(
                   padding: const EdgeInsets.all(12),
@@ -251,21 +314,25 @@ class _CameraScreenState extends ConsumerState<CameraScreen>
               ),
             ),
 
-          // ── Bottom Controls ────────────────────────────────────────
+          // ── Bottom Controls ──────────────────────────────────────────
           Positioned(
             bottom: 0,
             left: 0,
             right: 0,
             child: Container(
-              decoration: const BoxDecoration(
+              decoration: BoxDecoration(
                 gradient: LinearGradient(
                   begin: Alignment.bottomCenter,
                   end: Alignment.topCenter,
-                  colors: [Colors.black, Colors.black87, Colors.transparent],
-                  stops: [0.0, 0.7, 1.0],
+                  colors: [
+                    Colors.black,
+                    Colors.black.withValues(alpha: 0.85),
+                    Colors.transparent,
+                  ],
+                  stops: const [0.0, 0.65, 1.0],
                 ),
               ),
-              padding: const EdgeInsets.only(top: 12, bottom: 28),
+              padding: const EdgeInsets.only(top: 10, bottom: 28),
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
@@ -273,11 +340,11 @@ class _CameraScreenState extends ConsumerState<CameraScreen>
                   ThumbnailStrip(
                     pages: cameraState.capturedPages,
                     onPageDelete:
-                        ref.read(cameraControllerProvider.notifier).deletePage,
+                    ref.read(cameraControllerProvider.notifier).deletePage,
                   ),
-                  const SizedBox(height: 12),
+                  const SizedBox(height: 10),
 
-                  // Main controls row
+                  // Controls row
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                     crossAxisAlignment: CrossAxisAlignment.center,
@@ -292,46 +359,50 @@ class _CameraScreenState extends ConsumerState<CameraScreen>
                             .toggleTorch,
                       ),
 
-                      // Primary action button
-                      _PrimaryButton(cameraState: cameraState, ref: ref),
+                      // Manual capture (big centre button)
+                      _ManualCaptureButton(
+                        isProcessing: cameraState.isProcessing,
+                        onTap: ref
+                            .read(cameraControllerProvider.notifier)
+                            .manualCapture,
+                      ),
 
                       // Pause / Resume
                       _CircleButton(
                         icon: cameraState.scanState == ScanState.paused
                             ? Icons.play_arrow
                             : Icons.pause,
-                        onTap: cameraState.scanState == ScanState.idle
-                            ? null
-                            : ref
-                                .read(cameraControllerProvider.notifier)
-                                .togglePause,
+                        onTap: ref
+                            .read(cameraControllerProvider.notifier)
+                            .togglePause,
                       ),
                     ],
                   ),
 
                   const SizedBox(height: 12),
 
-                  // Review & Export button
+                  // Done — navigate to review
                   Padding(
                     padding: const EdgeInsets.symmetric(horizontal: 24),
                     child: FilledButton.icon(
-                      onPressed: cameraState.capturedPages.isEmpty
-                          ? null
-                          : () {
-                              ref
-                                  .read(cameraControllerProvider.notifier)
-                                  .stopFlipScan();
-                              context.push('/review',
-                                  extra: cameraState.capturedPages);
-                            },
-                      icon: const Icon(Icons.check_circle_outline),
+                      onPressed: () {
+                        ref
+                            .read(cameraControllerProvider.notifier)
+                            .finishScan();
+                      },
+                      icon: cameraState.capturedPages.isEmpty
+                          ? const Icon(Icons.arrow_back)
+                          : const Icon(Icons.check_circle_outline),
                       label: Text(
                         cameraState.capturedPages.isEmpty
-                            ? 'Scan pages first'
-                            : 'Review & Export (${cameraState.capturedPages.length} pages)',
+                            ? 'Back'
+                            : 'Done  •  Review ${cameraState.capturedPages.length} page${cameraState.capturedPages.length == 1 ? '' : 's'}',
                       ),
                       style: FilledButton.styleFrom(
-                        minimumSize: const Size(double.infinity, 48),
+                        minimumSize: const Size(double.infinity, 50),
+                        backgroundColor: cameraState.capturedPages.isEmpty
+                            ? Colors.grey.shade700
+                            : AppTheme.primaryColor,
                       ),
                     ),
                   ),
@@ -345,90 +416,56 @@ class _CameraScreenState extends ConsumerState<CameraScreen>
   }
 }
 
-// ─── Primary Action Button ──────────────────────────────────────────────────
+// ─── Manual Capture Button ──────────────────────────────────────────────────
 
-class _PrimaryButton extends ConsumerWidget {
-  const _PrimaryButton({required this.cameraState, required this.ref});
-  final CameraState cameraState;
-  final WidgetRef ref;
+class _ManualCaptureButton extends StatelessWidget {
+  const _ManualCaptureButton(
+      {required this.isProcessing, required this.onTap});
+  final bool isProcessing;
+  final VoidCallback onTap;
 
   @override
-  Widget build(BuildContext context, WidgetRef wRef) {
-    final notifier = ref.read(cameraControllerProvider.notifier);
-    final isFlipActive = cameraState.isFlipScanActive;
-    final isProcessing = cameraState.isProcessing;
-
-    if (!isFlipActive) {
-      // ── "Start Flip Scan" button ────────────────────────────────────
-      return GestureDetector(
-        onTap: isProcessing ? null : notifier.startFlipScan,
-        child: Container(
-          width: 82,
-          height: 82,
-          decoration: BoxDecoration(
-            shape: BoxShape.circle,
-            color: isProcessing ? Colors.grey : AppTheme.primaryColor,
-            border: Border.all(color: Colors.white, width: 3),
-            boxShadow: isProcessing
-                ? []
-                : [
-                    BoxShadow(
-                        color: AppTheme.primaryColor.withOpacity(0.5),
-                        blurRadius: 16,
-                        spreadRadius: 2)
-                  ],
-          ),
-          child: const Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Icon(Icons.flip, color: Colors.white, size: 28),
-              SizedBox(height: 2),
-              Text('START',
-                  style: TextStyle(
-                      color: Colors.white,
-                      fontSize: 9,
-                      fontWeight: FontWeight.bold)),
-            ],
-          ),
-        ),
-      );
-    }
-
-    // ── "Stop" button (flip scan running) ─────────────────────────────
+  Widget build(BuildContext context) {
     return GestureDetector(
-      onTap: notifier.stopFlipScan,
+      onTap: isProcessing ? null : onTap,
       child: Container(
-        width: 82,
-        height: 82,
+        width: 76,
+        height: 76,
         decoration: BoxDecoration(
           shape: BoxShape.circle,
-          color: Colors.red.shade700,
-          border: Border.all(color: Colors.white, width: 3),
-        ),
-        child: const Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(Icons.stop, color: Colors.white, size: 28),
-            SizedBox(height: 2),
-            Text('STOP',
-                style: TextStyle(
-                    color: Colors.white,
-                    fontSize: 9,
-                    fontWeight: FontWeight.bold)),
+          color: isProcessing ? Colors.grey : Colors.white,
+          border: Border.all(
+              color: isProcessing ? Colors.grey.shade700 : Colors.white60,
+              width: 3),
+          boxShadow: isProcessing
+              ? []
+              : [
+            BoxShadow(
+                color: Colors.white.withValues(alpha: 0.3),
+                blurRadius: 12,
+                spreadRadius: 2)
           ],
         ),
+        child: isProcessing
+            ? const Center(
+          child: SizedBox(
+            width: 28,
+            height: 28,
+            child:
+            CircularProgressIndicator(strokeWidth: 3, color: Colors.white),
+          ),
+        )
+            : const Icon(Icons.camera_alt, color: Colors.black, size: 30),
       ),
     );
   }
 }
 
-// ─── Helper widgets ─────────────────────────────────────────────────────────
+// ─── Helpers ────────────────────────────────────────────────────────────────
 
 class _CircleButton extends StatelessWidget {
-  const _CircleButton(
-      {required this.icon, this.label, required this.onTap});
+  const _CircleButton({required this.icon, required this.onTap});
   final IconData icon;
-  final String? label;
   final VoidCallback? onTap;
 
   @override
@@ -436,16 +473,14 @@ class _CircleButton extends StatelessWidget {
     return GestureDetector(
       onTap: onTap,
       child: Container(
-        padding: const EdgeInsets.all(10),
+        padding: const EdgeInsets.all(11),
         decoration: BoxDecoration(
           shape: BoxShape.circle,
-          color: onTap == null
-              ? Colors.white12
-              : Colors.black.withOpacity(0.55),
+          color: Colors.black.withValues(alpha: 0.5),
           border: Border.all(color: Colors.white24),
         ),
-        child: Icon(icon, color: onTap == null ? Colors.white38 : Colors.white,
-            size: 22),
+        child: Icon(icon,
+            color: onTap == null ? Colors.white38 : Colors.white, size: 22),
       ),
     );
   }
@@ -457,40 +492,41 @@ class _StateBadge extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final (label, color) = _labelAndColor(scanState);
+    final (label, color) = _info(scanState);
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+      padding: const EdgeInsets.symmetric(horizontal: 11, vertical: 5),
       decoration: BoxDecoration(
-        color: color.withOpacity(0.85),
+        color: color.withValues(alpha: 0.88),
         borderRadius: BorderRadius.circular(20),
       ),
-      child:
-          Text(label, style: const TextStyle(color: Colors.white, fontSize: 12)),
+      child: Text(label,
+          style: const TextStyle(
+              color: Colors.white, fontSize: 11, fontWeight: FontWeight.w600)),
     );
   }
 
-  (String, Color) _labelAndColor(ScanState s) {
+  (String, Color) _info(ScanState s) {
     switch (s) {
       case ScanState.idle:
-        return ('Ready', Colors.blueGrey);
+        return ('Idle', Colors.blueGrey);
       case ScanState.detecting:
-        return ('Detecting…', Colors.blueGrey.shade700);
+        return ('Detecting', Colors.blueGrey.shade600);
       case ScanState.stable:
-        return ('Stable', Colors.green.shade700);
+        return ('Stable ✓', Colors.green.shade700);
       case ScanState.capturing:
         return ('Capturing!', Colors.teal.shade700);
       case ScanState.monitoring:
-        return ('Monitoring', Colors.indigo.shade600);
+        return ('Watching', Colors.indigo.shade500);
       case ScanState.flipping:
         return ('Flip!', Colors.orange.shade700);
       case ScanState.restabilizing:
         return ('Settling…', Colors.amber.shade700);
       case ScanState.paused:
-        return ('Paused', Colors.grey.shade700);
+        return ('Paused', Colors.grey.shade600);
       case ScanState.recording:
         return ('Recording', Colors.red.shade700);
       case ScanState.analyzing:
-        return ('Analyzing', Colors.purple.shade700);
+        return ('Analysing', Colors.purple.shade600);
       case ScanState.error:
         return ('Error', Colors.red.shade800);
     }
@@ -503,16 +539,17 @@ class _CountBadge extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    if (count == 0) return const SizedBox.shrink();
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+      padding: const EdgeInsets.symmetric(horizontal: 11, vertical: 5),
       decoration: BoxDecoration(
-        color: Colors.black54,
+        color: Colors.black.withValues(alpha: 0.6),
         borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: Colors.white24),
       ),
-      child: Text(
-        '$count page${count == 1 ? '' : 's'}',
-        style: const TextStyle(color: Colors.white, fontSize: 12),
-      ),
+      child: Text('$count page${count == 1 ? '' : 's'}',
+          style: const TextStyle(
+              color: Colors.white, fontSize: 11, fontWeight: FontWeight.w500)),
     );
   }
 }

@@ -44,7 +44,7 @@ class AppTheme {
       ),
       bodyMedium: TextStyle(
         fontSize: 14, fontWeight: FontWeight.w400,
-        color: baseColor.withOpacity(0.7),
+        color: baseColor.withValues(alpha: 0.7),
       ),
       labelLarge: TextStyle(
         fontSize: 14, fontWeight: FontWeight.w600, color: baseColor,
